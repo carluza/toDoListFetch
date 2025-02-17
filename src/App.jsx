@@ -1,128 +1,163 @@
 import React, { useState, useEffect } from "react";
 
 export const App = () => {
-  const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState("");
-  const [editingTask, setEditingTask] = useState(null);
-  const [editText, setEditText] = useState("");
+  const [task, setTask] = useState([]);
+  const [input, setInput] = useState("");
 
-  const apiUrl = "https://playground.4geeks.com/todo/users/carlitos";
+  const urlBase = "https://playground.4geeks.com/todo/users/carlitos";
+  const urlDelete = "https://playground.4geeks.com/todo/todos/";
+  const urlBasePost = "https://playground.4geeks.com/todo/todos/carlitos";
+  const urlBaseUpdate = "https://playground.4geeks.com/todo/todos/";
+  const urlBaseUpdateDone = "https://playground.4geeks.com/todo/todos/";
 
-  //mostrar tareas renderizadas al cargar la web
-  useEffect(() => {
-    fetch(apiUrl)
-      .then((resp) => resp.json())
-      .then((data) => {
-        if (data.todos) {
-          setTasks(data.todos);
-        }
-      })
-      .catch((error) =>
-        console.error("Error al extraer las tareas desde la API:", error)
+  const getTasks = async () => {
+    try {
+      const response = await fetch(urlBase, {
+        method: "GET",
+      });
+      const data = await response.json();
+      console.log(data);
+      setTask(data.todos);
+    } catch (error) {
+      console.log("error obteniendo las tareas:", error);
+    }
+  };
+
+  const createTask = async () => {
+    try {
+      const nuevaTarea = {
+        label: input,
+        is_done: false,
+      };
+
+      const response = await fetch(urlBasePost, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(nuevaTarea),
+      });
+
+      const newData = await response.json();
+      console.log("Tarea creada:", newData);
+      getTasks();
+      setInput("");
+    } catch (error) {
+      console.log("Error al crear tarea:", error);
+    }
+  };
+
+  const updateTask = async (id, currentLabel) => {
+    try {
+      const newLabel = prompt(
+        "Escribe el nuevo nombre de la tarea:",
+        currentLabel
       );
+      if (!newLabel) return;
+
+      const tareaActualizada = {
+        label: newLabel,
+        is_done: false,
+      };
+
+      const response = await fetch(`${urlBaseUpdate}${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(tareaActualizada),
+      });
+
+      if (response.ok) {
+        console.log("Tarea actualizada correctamente");
+        getTasks();
+      }
+    } catch (error) {
+      console.log("Error al actualizar la tarea", error);
+    }
+  };
+
+  const updateIsDone = async (id, currentState) => {
+    try {
+      const tareaActualizada = {
+        is_done: !currentState,
+      };
+
+      const response = await fetch(`${urlBaseUpdateDone}${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(tareaActualizada),
+      });
+      if (response.ok) {
+        getTasks();
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const deleteTask = async (id) => {
+    try {
+      const response = await fetch(`${urlDelete}${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        console.log(`Tarea con id ${id} eliminada correctamente`);
+        setTask(task.filter((t) => t.id !== id));
+        getTasks();
+      } else {
+        console.log("error al eliminar tarea");
+      }
+    } catch (error) {
+      console.log("no se pudo eliminar la task", error);
+    }
+  };
+
+  useEffect(() => {
+    getTasks();
   }, []);
 
-  //añadir una tarea
-  const handleAddTask = () => {
-    if (newTask.trim() === "") return;
-
-    const newTaskObject = {
-      label: newTask,
-      is_done: false,
-      id: tasks.length ? tasks[tasks.length - 1].id + 1 : 1,
-    };
-
-    const updatedTasks = [...tasks, newTaskObject];
-
-    updateTasksInAPI(updatedTasks);
-    setNewTask("");
-  };
-
-  //quitar tarea
-  const handleDeleteTask = (id) => {
-    const updatedTasks = tasks.filter((task) => task.id !== id);
-    updateTasksInAPI(updatedTasks);
-  };
-
-  //editar tarea
-  const handleEditTask = (task) => {
-    setEditingTask(task.id);
-    setEditText(task.label);
-  };
-
-  //guardar
-  const handleSaveEdit = (id) => {
-    const updatedTasks = tasks.map((task) =>
-      task.id === id ? { ...task, label: editText } : task
-    );
-
-    updateTasksInAPI(updatedTasks);
-    setEditingTask(null);
-  };
-
-  // actualizar la api con la lista nueva
-  const updateTasksInAPI = (updatedTasks) => {
-    fetch(apiUrl, {
-      method: "PUT",
-      body: JSON.stringify({ name: "carlitos", todos: updatedTasks }),
-      headers: { "Content-Type": "application/json" },
-    })
-      .then((resp) => resp.json())
-      .then(() => setTasks(updatedTasks))
-      .catch((error) =>
-        console.error("Error al actualizar las tareas:", error)
-      );
-  };
-  //retorno del html
   return (
-    <div className="container">
-      <h1>My Todos</h1>
-      <div>
-        <input
-          type="text"
-          placeholder="What do you need to do?"
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-        />
-        <button onClick={handleAddTask}>
-          <i className="fa-solid fa-plus"></i>
-        </button>
+    <>
+      <div className="container">
+        <div className="row">
+          <div className="col">
+            <div className="text-center">
+              <h1>ToDoList React.JS</h1>
+            </div>
+            <div className="justify-content-center text-center d-flex ">
+              <input
+                placeholder="Write your Task"
+                className="text-center form-control"
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                }}
+              />
+              <button className="btn btn-enter" onClick={createTask}>
+                Enter
+              </button>
+            </div>
+            <div>
+              <ul className="">
+                {task.map((task) => (
+                  <li key={task.id}>
+                    {task.label}{" "}
+                    <button onClick={() => updateIsDone(task.id, task.is_done)}>
+                      {task.is_done ? "Mark as Not Ready" : "Mark as Ready"}
+                    </button>
+                    <button onClick={() => deleteTask(task.id)}>X</button>
+                    <button onClick={() => updateTask(task.id)}>Update</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <ul>
-        {/* recorremos los elementos de la api para añadirlos al html */}
-        {tasks.map((task) => (
-          <li key={task.id}>
-            {editingTask === task.id ? (
-              <>
-                {/* entrada para escribir la task */}
-                <input
-                  type="text"
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                />
-                {/* boton para guardar tarea */}
-                <button onClick={() => handleSaveEdit(task.id)}>Save</button>
-              </>
-            ) : (
-              <>
-                {/* label donde está el titulo de la tarea */}
-                {task.label}
-                {/* boton para editar tarea */}
-                <button onClick={() => handleEditTask(task)}>
-                  <i className="fa-solid fa-pen-to-square"></i>
-                </button>
-                {/* boton para eliminar tarea */}
-                <button onClick={() => handleDeleteTask(task.id)}>
-                  <i className="fa-solid fa-trash"></i>
-                </button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-      {/* contador de tareas */}
-      <div className="task-count">{tasks.length} Tasks</div>
-    </div>
+    </>
   );
 };
